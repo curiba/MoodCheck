@@ -1,0 +1,35 @@
+<ion-header>
+    <ion-navbar>
+        <button menuToggle>
+            <ion-icon name="menu"></ion-icon>
+        </button>
+        <ion-title>MoodCheck</ion-title>
+        <ion-buttons end>
+            <button (click)="takePicture()"><ion-icon name="camera"></ion-icon></button>
+            <button (click)="selectPicture()"><ion-icon name="folder"></ion-icon></button>
+        </ion-buttons>
+    </ion-navbar>
+</ion-header>
+
+<ion-content class="page1">
+    <canvas id="canvas" class="moodCanvas">Canvas not support</canvas>
+</ion-content>
+
+<ion-footer>
+    <ion-grid>
+        <ion-row>
+            <ion-col width-25 text-center>
+                <button primary clear (click)="onInstagramClicked()"><ion-icon name="apps"></ion-icon></button>
+            </ion-col>
+            <ion-col width-25 text-center>
+                <button primary clear (click)="onFacebookClicked()"><ion-icon name="archive"></ion-icon></button>
+            </ion-col>
+            <ion-col width-25 text-center>
+                <button primary clear (click)="onDownloadClicked()"><ion-icon name="download"></ion-icon></button>
+            </ion-col>
+            <ion-col width-25 text-center>
+                <button primary clear (click)="onShareClicked()"><ion-icon name="share"></ion-icon></button>
+            </ion-col>
+        </ion-row>
+    </ion-grid>
+</ion-footer>

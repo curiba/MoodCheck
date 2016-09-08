@@ -1,0 +1,29 @@
+<ion-header>
+    <ion-navbar>
+        <button menuToggle>
+            <ion-icon name="menu"></ion-icon>
+        </button>
+        <ion-title>Settings</ion-title>
+    </ion-navbar>
+</ion-header>
+
+<ion-content padding>
+    <ion-list no-lines>
+        <ion-item>
+            <ion-label> Save original image to library</ion-label>
+            <ion-toggle [(ngModel)]="settings.saveToPhotoAlbum" [ngModelOptions]="{ getterSetter: true }"></ion-toggle>
+        </ion-item>
+        <ion-item>
+            <ion-label> Save result image to library</ion-label>
+            <ion-toggle [(ngModel)]="settings.saveProcessedToPhotoAlbum" [ngModelOptions]="{ getterSetter: true }"></ion-toggle>
+        </ion-item>
+        <ion-item>
+            <ion-label> Show tutorial on startup</ion-label>
+            <ion-toggle [(ngModel)]="settings.showTutorialOnStartup" [ngModelOptions]="{ getterSetter: true }"></ion-toggle>
+        </ion-item>
+    </ion-list>
+    <hr/>
+    <p>
+        MoodCheck 1.0 &copy; 2016 by App Lecrumble
+    </p>
+</ion-content>
