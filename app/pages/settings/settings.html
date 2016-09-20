@@ -21,6 +21,10 @@
             <ion-label> Show tutorial on startup</ion-label>
             <ion-toggle [(ngModel)]="settings.showTutorialOnStartup" [ngModelOptions]="{ getterSetter: true }"></ion-toggle>
         </ion-item>
+        <ion-item>
+            <ion-label>Tween</ion-label>
+            <ion-toggle (click)="onTween()" ></ion-toggle>
+        </ion-item>
     </ion-list>
     <hr/>
     <p>

@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { PopoverController, ToastController, AlertController, LoadingController, Platform, Loading, Alert, Events } from 'ionic-angular';
 import { Camera, SocialSharing } from 'ionic-native';
+import * as TWEEN from 'tween.js';
 
 import { AdminPage } from '../admin/admin';
 import { Utils} from '../../providers/utils';
@@ -28,6 +29,10 @@ export class RootPage {
     private loading: Loading;
     private drawScanning: boolean = false;
     private scanningLoops: number = 0;
+    private animationEndX: number;
+
+    private tweenArray: Array<TWEEN.Tween> = [];
+    private tweenPositionArray: Array<{ x: number, y: number, width: number, height: number }> = [];
 
     private faceIndex: number = 0;
 
@@ -49,9 +54,11 @@ export class RootPage {
         AdminPage.addLog("ionViewLoaded()");
 
         this.canvas = document.getElementById("canvas");
+        this.context = this.canvas.getContext('2d');
+
         this.canvas.width = canvasWidth;
         this.canvas.height = canvasHeight;
-        this.context = this.canvas.getContext('2d');
+        this.animationEndX = (this.canvas.width / 2) - 100;
 
         // Event listener setup
         this.events.subscribe('emotionDataAvailable', this.emotionDataAvailableHandler);
@@ -82,10 +89,14 @@ export class RootPage {
         AdminPage.addLog("ionViewDidLeave()");
     }
 
+    useBase64Image(event): void {
+        this.base64Image = base64Image;
+        this.image.src = this.base64Image;
+    }
+
     takePicture(event): void {
         AdminPage.addLog("takePicture()");
-
-        AdminPage.addLog("saveMode: " + this.settings. saveToPhotoAlbum);
+        AdminPage.addLog("saveMode: " + this.settings.saveToPhotoAlbum);
 
         let cameraOptions = {
             sourceType: Camera.PictureSourceType.CAMERA,
@@ -109,10 +120,6 @@ export class RootPage {
     }
 
     selectPicture(event): void {
-        // this.image.src = base64Image;
-        // this.base64Image = base64Image;
-        // if (1 == 1) return;
-
         let cameraOptions = {
             sourceType: Camera.PictureSourceType.PHOTOLIBRARY,
             destinationType: Camera.DestinationType.DATA_URL,
@@ -149,6 +156,7 @@ export class RootPage {
     }
 
     drawEmotions(): void {
+        AdminPage.addLog("drawEmotions()");
         if (this.emotionService.emotionData == null)
             throw new Error("emotionData must not be null!");
 
@@ -156,6 +164,7 @@ export class RootPage {
             this.drawNoFacesFound();
 
         this.emotionService.emotionData.forEach((element, i) => {
+            AdminPage.addLog("drawx() " + i) + " " + this.faceIndex;
             if (i == this.faceIndex) {
                 this.drawFaceMarker(element, i);
             } else {
@@ -174,8 +183,10 @@ export class RootPage {
     }
 
     private drawImageToCanvas(drawEmotions: boolean = false): void {
+        AdminPage.addLog("drawImageToCanvas() " + drawEmotions);
+        
         let targetSize = this.utils.scaleImage(this.image.width, this.image.height, canvasWidth, canvasWidth)
-        AdminPage.addLog("targetSize: " + targetSize.width + " : " + targetSize.height + " (" + this.image.width + " : " + this.image.height + ")");
+        //AdminPage.addLog("targetSize: " + targetSize.width + " : " + targetSize.height + " (" + this.image.width + " : " + this.image.height + ")");
 
         this.context.fillStyle = "#dddddd";
         this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -215,9 +226,7 @@ export class RootPage {
             this.context.fillText("Scanning...", this.xPos, this.xPos - 10);
         }
 
-        let endX = (this.canvas.width / 2) - 100;
-
-        if (this.xPos < endX) {
+        if (this.xPos < this.animationEndX) {
             this.xPos = this.xPos + 1;
         } else {
             this.xPos = 0;
@@ -229,6 +238,60 @@ export class RootPage {
         } else {
             this.events.publish("scanAnimationEnded");
         }
+    }
+
+    private faceTween(): void {
+        let that = this;
+
+        this.emotionService.emotionData.forEach((emotionalData, i) => {
+            const targetX: number = emotionalData.faceRectangle.left;
+            const targetY: number = emotionalData.faceRectangle.top;
+            const targetWidth: number = emotionalData.faceRectangle.width;
+            const targetHeight: number = emotionalData.faceRectangle.height;
+
+            let tween = new TWEEN.Tween({ id: i, x: this.animationEndX, y: this.animationEndX, width: 200, height: 200 });
+            let tweenPosition: any = {};
+
+            tween.to({ x: targetX, y: targetY, width: targetWidth, height: targetHeight }, 1500)
+                .easing(TWEEN.Easing.Exponential.Out)
+                .onUpdate(function() {
+                    tweenPosition.x = this.x;
+                    tweenPosition.y = this.y;
+                    tweenPosition.width = this.width;
+                    tweenPosition.height = this.height;
+                })
+                .onComplete(function() {
+                    console.log("END-" + this.id);
+                    if (this.id === that.emotionService.emotionData.length - 1)
+                        that.events.publish("scanAnimationEnded");
+                })
+               ;//.start();
+
+            setTimeout(function() {
+                tween.start();
+            }, i * 100);
+
+            this.tweenArray.push(tween);
+            this.tweenPositionArray.push(tweenPosition);
+        });
+        this.drawTween();
+    }
+
+    private drawTween = () => {
+        this.context.strokeStyle = "#ffffff";
+        this.context.fillStyle = "#ffffff";
+        this.context.lineWidth = 5;
+
+        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.drawImage(this.image, 0, 0);
+
+        // Tweened face rectangles
+        this.tweenPositionArray.forEach((element) => {
+            this.context.strokeRect(element.x, element.y, element.width, element.height);
+        });
+        
+        TWEEN.update();
+        window.requestAnimationFrame(this.drawTween);
     }
 
     private drawFaceMarker(emotionalData: any, index: number): void {
@@ -343,7 +406,7 @@ export class RootPage {
     private emotionDataAvailableHandler = () => {
         AdminPage.addLog("emotionDataAvailable");
     }
-    
+
     private onInstagramClicked(): void {
         let toast = this.toastCtrl.create({
             message: 'Todo: Instagram',
