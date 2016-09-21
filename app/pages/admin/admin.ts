@@ -5,17 +5,17 @@ import { Component } from '@angular/core';
 })
 export class AdminPage {
 
-    static logMessages: string = "";
+    static logMessages: string[] = [];
 
     constructor() {}
 
     static addLog(message: string) {
         console.log(message);
-        AdminPage.logMessages += (AdminPage.logMessages != "" ? ", " : "") + message;
+        AdminPage.logMessages.push(message);
     }
 
     clearLog():void {
-        AdminPage.logMessages = "";
+        AdminPage.logMessages = [];
     }
 
     public get messages() {

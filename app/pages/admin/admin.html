@@ -11,5 +11,9 @@
 </ion-header>
 
 <ion-content padding>
-    {{messages}}
+    <ion-list no-lines>
+        <ion-item smaller *ngFor="let message of messages">
+            {{message}}
+        </ion-item>
+    </ion-list>
 </ion-content>
