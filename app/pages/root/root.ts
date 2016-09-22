@@ -7,7 +7,7 @@ import { AdminPage } from '../admin/admin';
 import { Utils} from '../../providers/utils';
 import { Settings } from '../../providers/settings';
 import { EmotionService } from '../../providers/emotion-service';
-import { base64Image } from '../../constants';
+import { base64Image, base64Image2, base64Image3 } from '../../constants';
 
 const canvasWidth: number = 500;
 const canvasHeight: number = 750;
@@ -96,7 +96,7 @@ export class RootPage {
     }
 
     useBase64Image(event): void {
-        this.base64Image = base64Image;
+        this.base64Image = base64Image3;
         this.image.src = this.base64Image;
     }
 
