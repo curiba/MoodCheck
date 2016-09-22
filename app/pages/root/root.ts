@@ -64,11 +64,12 @@ export class RootPage {
 
         this.canvas.width = canvasWidth;
         this.canvas.height = canvasHeight;
-        this.animationEndX = (this.canvas.width / 2) - 100;
+        this.animationEndX = (this.canvas.width / 2) - 5;
 
         // Event listener setup
         this.events.subscribe('emotionDataAvailable', this.emotionDataAvailableHandler);
         this.events.subscribe('scanAnimationEnded', this.scanAnimationEndedHandler);
+        this.events.subscribe('faceAnimationEnded', this.faceAnimationEndedHandler);
 
         // click handling
         this.canvas.onclick = (e) => {
@@ -85,6 +86,7 @@ export class RootPage {
         // Unregister event listener
         this.events.unsubscribe('emotionDataAvailable', this.emotionDataAvailableHandler);
         this.events.unsubscribe('scanAnimationEnded', this.scanAnimationEndedHandler);
+        this.events.unsubscribe('faceAnimationEnded', this.faceAnimationEndedHandler);
     }
 
     ionViewDidEnter() {
@@ -96,7 +98,7 @@ export class RootPage {
     }
 
     useBase64Image(event): void {
-        this.base64Image = base64Image3;
+        this.base64Image = base64Image2;
         this.image.src = this.base64Image;
     }
 
@@ -158,6 +160,7 @@ export class RootPage {
             },
             () => {
                 this.stopScanAnimation();
+                this.events.publish("emotionDataAvailable");
             }
         );
     }
@@ -223,14 +226,21 @@ export class RootPage {
         this.context.drawImage(this.image, 0, 0);
 
         this.context.strokeRect(this.xPos, this.xPos, this.canvas.width - 2 * this.xPos, this.canvas.width - 2 * this.xPos);
-        this.context.fillRect(this.xPos - 2, this.xPos - 30, 100, 30);
+        this.context.globalAlpha = 0.75;
+        this.context.fillStyle = "#444444";
+        this.context.fillRect(this.xPos + 3, this.xPos + 3, this.canvas.width - 2 * this.xPos - 6, this.canvas.width - 2 * this.xPos - 6);
+        this.context.globalAlpha = 1;
 
-        if (this.xPos % 30 > 10) {
-            this.context.textAlign = "left";
-            this.context.textBaseline = "alphabetic";
-            this.context.fillStyle = "#444444";
-            this.context.font = "bold 16px Arial";
-            this.context.fillText("Scanning...", this.xPos, this.xPos - 10);
+        if (this.xPos < this.animationEndX - 50) {
+            this.context.fillStyle = "#ffffff";
+            this.context.fillRect(this.xPos - 2, this.xPos - 30, 100, 30);
+            if (this.xPos % 30 > 10) {
+                this.context.textAlign = "left";
+                this.context.textBaseline = "alphabetic";
+                this.context.fillStyle = "#666666";
+                this.context.font = "bold 16px Arial";
+                this.context.fillText("Scanning...", this.xPos, this.xPos - 10);
+            }
         }
 
         if (this.xPos < this.animationEndX) {
@@ -247,22 +257,20 @@ export class RootPage {
         }
     }
 
-    private faceTween = () => {
+    private drawFaceAnimation = () => {
         let that = this;
         this.tweenArray = [];
         this.tweenPositionArray = [];
 
         this.emotionService.emotionData.forEach((emotionalData, i) => {
-            const targetX: number = emotionalData.faceRectangle.left;
-            const targetY: number = emotionalData.faceRectangle.top;
-            const targetWidth: number = emotionalData.faceRectangle.width;
-            const targetHeight: number = emotionalData.faceRectangle.height;
-
             that.tweenActive = true;
-            let tween = new TWEEN.Tween({ id: i, x: this.animationEndX, y: this.animationEndX, width: 200, height: 200 });
+            let tween = new TWEEN.Tween({ id: i, x: this.animationEndX, y: this.animationEndX, width: 10, height: 10 });
             let tweenPosition: any = {};
-            tween.to({ x: targetX, y: targetY, width: targetWidth, height: targetHeight }, 1500)
-                .easing(TWEEN.Easing.Exponential.Out)
+            tween.to({
+                x: emotionalData.faceRectangle.left, y: emotionalData.faceRectangle.top,
+                width: emotionalData.faceRectangle.width, height: emotionalData.faceRectangle.height
+            }, 1000)
+                .easing(TWEEN.Easing.Elastic.Out) //Exponential.Out)
                 .onUpdate(function () {
                     tweenPosition.x = this.x;
                     tweenPosition.y = this.y;
@@ -270,10 +278,10 @@ export class RootPage {
                     tweenPosition.height = this.height;
                 })
                 .onComplete(function () {
-                    console.log("END-" + this.id);
+                    console.log("face-tween-end-" + this.id);
                     if (this.id === that.emotionService.emotionData.length - 1) {
                         that.tweenActive = false;
-                        that.events.publish("scanAnimationEnded");
+                        console.log("this.tweenActive: " + that.tweenActive);
                     }
                 })
                 ;//.start();
@@ -285,10 +293,10 @@ export class RootPage {
             this.tweenArray.push(tween);
             this.tweenPositionArray.push(tweenPosition);
         });
-        this.drawTween();
+        this.faceAnimationLoop();
     }
 
-    private drawTween = () => {
+    private faceAnimationLoop = () => {
         this.context.strokeStyle = "#ffffff";
         this.context.fillStyle = "#ffffff";
         this.context.lineWidth = 5;
@@ -302,10 +310,12 @@ export class RootPage {
         });
 
         TWEEN.update();
-        if (this.tweenActive)
-            window.requestAnimationFrame(this.drawTween);
-        else
+        if (this.tweenActive) {
+            window.requestAnimationFrame(this.faceAnimationLoop);
+        } else {
             TWEEN.removeAll();
+            this.events.publish("faceAnimationEnded");
+        }
     }
 
     private drawFaceMarker(emotionalData: any, index: number): void {
@@ -315,8 +325,6 @@ export class RootPage {
         const height: number = emotionalData.faceRectangle.height;
         const barX = 10;
         const barY = canvasWidth + 25;
-        const barWidth = canvasWidth - 25;
-        const barHeight = 20;
 
         this.context.strokeStyle = "#ffffff";
         this.context.lineWidth = 5;
@@ -330,6 +338,29 @@ export class RootPage {
         this.context.quadraticCurveTo(10, 400, barX, barY);
         this.context.stroke();
 
+        // Chart
+        this.drawEmotionChart(emotionalData);
+    }
+
+    private drawFaceMarkerInactive(emotionalData: any, index: number): void {
+        const x: number = emotionalData.faceRectangle.left;
+        const y: number = emotionalData.faceRectangle.top;
+        const width: number = emotionalData.faceRectangle.width;
+        const height: number = emotionalData.faceRectangle.height;
+
+        this.context.strokeStyle = "#BBBBBB";
+        this.context.lineWidth = 5;
+
+        // Face rectangle
+        this.context.strokeRect(x, y, width, height);
+    }
+
+    private drawEmotionChart(emotionalData: any): void {
+        const barX = 10;
+        const barY = canvasWidth + 25;
+        const barWidth = canvasWidth - 25;
+        const barHeight = 20;
+
         // Bar panel
         this.context.fillStyle = "#ffffff";
         this.context.fillRect(barX - 3, barY - 5, barWidth + 10, 220);
@@ -339,53 +370,45 @@ export class RootPage {
         for (let i = 0; i < emotionKeys.length; i++) {
             let emotion = emotionKeys[i];
             let emotionToDisplay = emotion[0].toUpperCase() + emotion.substr(1);
-
-            this.context.fillStyle = "#E0ECF8";
-            this.context.lineWidth = 5;
-
             let startX = barX + 90;
             let startY = barY + (i * 27);
             let endWidth = this.getEmotionWidth(emotionalData.scores[emotion], barWidth - 90);
             let percentageLabel = this.getEmotionPercentage(emotionalData.scores[emotion]);
             let labelAlignment = emotionalData.scores[emotion] > 0.80 ? "right" : "left";
 
+            this.context.fillStyle = "#E0ECF8";
+            this.context.lineWidth = 5;
             this.context.fillRect(startX, startY, barWidth - 90, barHeight);
-            this.context.fillStyle = "#58ACFA";
-
-            //this.context.fillRect(startX, startY, endWidth, barHeight);
 
             this.tweenBarWidths[i] = {
-                id: i, x: startX, y: startY, width: 0, endWidth: endWidth, height: barHeight, percentageLabel: percentageLabel, labelAlignment: labelAlignment
+                id: i, x: startX, y: startY, width: 0, endWidth: endWidth,
+                height: barHeight, percentageLabel: percentageLabel, labelAlignment: labelAlignment
             };
 
             let that = this;
-            let tween = new TWEEN.Tween({ id: i, x: startX, y: startY, width: 0, endWidth: endWidth, height: barHeight, percentageLabel: percentageLabel, labelAlignment: labelAlignment });
+            let tween = new TWEEN.Tween({
+                id: i, x: startX, y: startY, width: 0, endWidth: endWidth,
+                height: barHeight, percentageLabel: percentageLabel, labelAlignment: labelAlignment
+            });
+
             tween.to({ width: endWidth }, 750)
                 .easing(TWEEN.Easing.Exponential.Out)
                 .onUpdate(function () {
-                    //console.log("BAR-UPDATE-" + this.id + " " + this.width);
                     that.tweenBarWidths[this.id].width = this.width;
                 })
                 .onComplete(function () {
-                    //console.log("BAR-TWEEN-" + this.id);
-                    // if (this.id === that.emotionService.emotionData.length - 1) {
-                    //     that.tweenActive = false;
-                    //     that.events.publish("scanAnimationEnded");
-                    // }
-                    //that.drawPercentageLabel(percentageLabel, labelAlignment, endWidth + 90 + 15, startY + 16);
+                    //console.log("bar-tween-end-" + this.id);
                 })
                 .start();
-
             this.drawEmotionLabel(emotionToDisplay, startX - 10, startY + 14);
         }
-        this.drawBarAnimation();
+        this.chartAnimationLoop();
     }
 
-    private drawBarAnimation = () => {
-        //console.log("BAR-DRAW-" + this.tweenBarWidths[0].width);
+    private chartAnimationLoop = () => {
         let animationComplete = true;
+
         this.tweenBarWidths.forEach((element, i) => {
-            //console.log(element.id + " " + element.width + " " + element.endWidth);
             this.context.fillStyle = "#58ACFA";
             this.context.fillRect(element.x, element.y, element.width, element.height);
             animationComplete = animationComplete && (element.width >= element.endWidth);
@@ -394,25 +417,11 @@ export class RootPage {
         });
         TWEEN.update();
         if (!animationComplete)
-            window.requestAnimationFrame(this.drawBarAnimation);
+            window.requestAnimationFrame(this.chartAnimationLoop);
         else {
             TWEEN.removeAll();
-            console.log("bar-animation-complete");
+            //console.log("bar-animation-complete");
         }
-    }
-
-    private drawFaceMarkerInactive(emotionalData: any, index: number): void {
-        const x: number = emotionalData.faceRectangle.left;
-        const y: number = emotionalData.faceRectangle.top;
-        const width: number = emotionalData.faceRectangle.width;
-        const height: number = emotionalData.faceRectangle.height;
-
-        this.context.fillStyle = "#BBBBBB";
-        this.context.strokeStyle = "#BBBBBB";
-        this.context.lineWidth = 5;
-
-        // Face rectangle
-        this.context.strokeRect(x, y, width, height);
     }
 
     private drawWatermark(): void {
@@ -469,10 +478,15 @@ export class RootPage {
         return (raw * 100).toFixed(2) + " %";
     }
 
-    private scanAnimationEndedHandler = () => {
-        AdminPage.addLog("scanAnimationEnded");
+    private faceAnimationEndedHandler = () => {
+        AdminPage.addLog("faceAnimationEnded");
         if (this.emotionService.emotionData != null)
             this.drawImageToCanvas(true);
+    }
+
+    private scanAnimationEndedHandler = () => {
+        AdminPage.addLog("scanAnimationEnded");
+        this.drawFaceAnimation();
     }
 
     private emotionDataAvailableHandler = () => {
